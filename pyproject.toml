@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "audio-media-utils"
+version = "0.1.0"
+description = "Utilities for yt-dlp audio downloads and simple mutagen metadata workflows"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mutagen>=1.47,<2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9,<10",
+    "pytest-cov>=6,<7",
+    "sphinx>=8,<9",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
