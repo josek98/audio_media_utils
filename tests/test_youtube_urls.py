@@ -93,6 +93,31 @@ def test_expand_playlist_returns_entries_from_flat_playlist_json(monkeypatch) ->
     ]
 
 
+def test_expand_playlist_supports_cookies_file(monkeypatch) -> None:
+    def _fake_run_ytdlp(command: list[str], timeout_seconds: int) -> YtDlpCommandResult:
+        assert command == [
+            'yt-dlp',
+            '--cookies',
+            'cookies.txt',
+            '--dump-single-json',
+            '--flat-playlist',
+            '--no-warnings',
+            'https://www.youtube.com/playlist?list=PL123',
+        ]
+        assert timeout_seconds == 45
+        return YtDlpCommandResult(returncode=0, stdout='{"entries": []}', stderr='')
+
+    monkeypatch.setattr(playlists, 'run_ytdlp', _fake_run_ytdlp)
+
+    result = expand_playlist(
+        'https://www.youtube.com/playlist?list=PL123',
+        cookies_file='cookies.txt',
+        timeout_seconds=45,
+    )
+
+    assert result == []
+
+
 def test_expand_playlist_raises_when_ytdlp_fails(monkeypatch) -> None:
     def _fake_run_ytdlp(command: list[str], timeout_seconds: int) -> YtDlpCommandResult:
         _ = (command, timeout_seconds)

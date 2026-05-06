@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from audio_media_utils.audio.files import read_audio_duration
+from audio_media_utils.audio.files import cleanup_ytdlp_artifacts_for_target, read_audio_duration
 
 
 def test_read_audio_duration_returns_length(monkeypatch, tmp_path) -> None:
@@ -25,3 +25,33 @@ def test_read_audio_duration_raises_for_missing_metadata(monkeypatch, tmp_path) 
 
     with pytest.raises(ValueError, match='Unable to read duration'):
         read_audio_duration(audio_file)
+
+
+def test_cleanup_ytdlp_artifacts_for_target_deletes_related_artifacts(tmp_path) -> None:
+    target_file = tmp_path / 'episode.flac'
+    target_file.write_bytes(b'final')
+
+    part_file = tmp_path / 'episode.flac.part'
+    webm_file = tmp_path / 'episode.webm'
+    webp_file = tmp_path / 'episode.webp'
+    other_file = tmp_path / 'other.webm'
+
+    part_file.write_bytes(b'partial')
+    webm_file.write_bytes(b'intermediate')
+    webp_file.write_bytes(b'thumbnail')
+    other_file.write_bytes(b'unrelated')
+
+    deleted_paths = cleanup_ytdlp_artifacts_for_target(target_file)
+
+    assert deleted_paths == [part_file, webm_file, webp_file]
+    assert target_file.exists() is True
+    assert part_file.exists() is False
+    assert webm_file.exists() is False
+    assert webp_file.exists() is False
+    assert other_file.exists() is True
+
+
+def test_cleanup_ytdlp_artifacts_for_target_ignores_missing_files(tmp_path) -> None:
+    target_file = tmp_path / 'episode.flac'
+
+    assert cleanup_ytdlp_artifacts_for_target(target_file) == []
