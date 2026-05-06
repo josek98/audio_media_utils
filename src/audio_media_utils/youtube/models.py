@@ -44,13 +44,11 @@ class DownloadOptions:
 
 @dataclass(frozen=True)
 class DownloadResult:
-    """Result of a download attempt."""
+    """Successful result of an audio download attempt."""
 
-    success: bool
     url: str
     file_path: Path | None = None
     title: str | None = None
     already_downloaded: bool = False
     stdout: str = ""
     stderr: str = ""
-    error_reason: str | None = None
