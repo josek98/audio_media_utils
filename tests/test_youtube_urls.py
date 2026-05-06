@@ -3,9 +3,10 @@ from pathlib import Path
 import pytest
 
 from audio_media_utils.exceptions import YtDlpError
-from audio_media_utils.youtube import downloads, playlists
+from audio_media_utils.youtube import downloads, metadata, playlists
 from audio_media_utils.youtube.downloads import download_audio
 from audio_media_utils.youtube.models import DownloadOptions
+from audio_media_utils.youtube.metadata import fetch_video_metadata
 from audio_media_utils.youtube.playlists import expand_playlist
 from audio_media_utils.youtube.ytdlp_runner import YtDlpCommandResult
 from audio_media_utils.youtube.urls import (
@@ -101,6 +102,92 @@ def test_expand_playlist_raises_when_ytdlp_fails(monkeypatch) -> None:
 
     with pytest.raises(YtDlpError, match='Could not expand playlist'):
         expand_playlist('https://www.youtube.com/playlist?list=PL123')
+
+
+def test_fetch_video_metadata_returns_normalized_fields(monkeypatch) -> None:
+    def _fake_run_ytdlp(command: list[str], timeout_seconds: int) -> YtDlpCommandResult:
+        assert command == [
+            'yt-dlp',
+            '--cookies',
+            'cookies.txt',
+            '--dump-single-json',
+            '--skip-download',
+            '--no-warnings',
+            '--no-playlist',
+            'https://www.youtube.com/watch?v=abc123',
+        ]
+        assert timeout_seconds == 45
+        return YtDlpCommandResult(
+            returncode=0,
+            stdout=(
+                '{'
+                '"id": "abc123", '
+                '"title": "Episode title", '
+                '"upload_date": "20260506", '
+                '"duration": 3600, '
+                '"live_status": "not_live", '
+                '"was_live": true, '
+                '"release_timestamp": 1746496800'
+                '}'
+            ),
+            stderr='',
+        )
+
+    monkeypatch.setattr(metadata, 'run_ytdlp', _fake_run_ytdlp)
+
+    result = fetch_video_metadata(
+        'https://www.youtube.com/watch?v=abc123',
+        cookies_file='cookies.txt',
+        timeout_seconds=45,
+    )
+
+    assert result.video_id == 'abc123'
+    assert result.url == 'https://www.youtube.com/watch?v=abc123'
+    assert result.title == 'Episode title'
+    assert result.upload_date == '20260506'
+    assert result.duration_seconds == 3600
+    assert result.live_status == 'not_live'
+    assert result.was_live is True
+    assert result.release_timestamp == 1746496800
+
+
+def test_fetch_video_metadata_uses_timestamp_fallback(monkeypatch) -> None:
+    def _fake_run_ytdlp(command: list[str], timeout_seconds: int) -> YtDlpCommandResult:
+        _ = (command, timeout_seconds)
+        return YtDlpCommandResult(
+            returncode=0,
+            stdout='{"id": "abc123", "is_live": true, "timestamp": 1746496800}',
+            stderr='',
+        )
+
+    monkeypatch.setattr(metadata, 'run_ytdlp', _fake_run_ytdlp)
+
+    result = fetch_video_metadata('https://www.youtube.com/watch?v=abc123')
+
+    assert result.was_live is True
+    assert result.release_timestamp == 1746496800
+
+
+def test_fetch_video_metadata_raises_when_ytdlp_fails(monkeypatch) -> None:
+    def _fake_run_ytdlp(command: list[str], timeout_seconds: int) -> YtDlpCommandResult:
+        _ = (command, timeout_seconds)
+        return YtDlpCommandResult(returncode=1, stdout='', stderr='boom', reason='os_error')
+
+    monkeypatch.setattr(metadata, 'run_ytdlp', _fake_run_ytdlp)
+
+    with pytest.raises(YtDlpError, match='Could not fetch video metadata'):
+        fetch_video_metadata('https://www.youtube.com/watch?v=abc123')
+
+
+def test_fetch_video_metadata_raises_when_video_id_is_missing(monkeypatch) -> None:
+    def _fake_run_ytdlp(command: list[str], timeout_seconds: int) -> YtDlpCommandResult:
+        _ = (command, timeout_seconds)
+        return YtDlpCommandResult(returncode=0, stdout='{"title": "No id"}', stderr='')
+
+    monkeypatch.setattr(metadata, 'run_ytdlp', _fake_run_ytdlp)
+
+    with pytest.raises(YtDlpError, match='did not return a video id'):
+        fetch_video_metadata('https://www.youtube.com/watch?v=abc123')
 
 
 def test_download_audio_builds_expected_command_and_returns_success(monkeypatch) -> None:
