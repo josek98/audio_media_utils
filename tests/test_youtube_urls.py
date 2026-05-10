@@ -3,11 +3,12 @@ from pathlib import Path
 import pytest
 
 from audio_media_utils.exceptions import YtDlpError
-from audio_media_utils.youtube import downloads, metadata, playlists
+from audio_media_utils.youtube import downloads, metadata, playlists, search
 from audio_media_utils.youtube.downloads import download_audio
 from audio_media_utils.youtube.models import DownloadOptions
 from audio_media_utils.youtube.metadata import fetch_video_metadata
 from audio_media_utils.youtube.playlists import expand_playlist
+from audio_media_utils.youtube.search import search_youtube_videos
 from audio_media_utils.youtube.ytdlp_runner import YtDlpCommandResult
 from audio_media_utils.youtube.urls import (
     extract_playlist_id,
@@ -91,6 +92,31 @@ def test_expand_playlist_returns_entries_from_flat_playlist_json(monkeypatch) ->
             title=None,
         ),
     ]
+
+
+def test_expand_playlist_supports_cookies_file(monkeypatch) -> None:
+    def _fake_run_ytdlp(command: list[str], timeout_seconds: int) -> YtDlpCommandResult:
+        assert command == [
+            'yt-dlp',
+            '--cookies',
+            'cookies.txt',
+            '--dump-single-json',
+            '--flat-playlist',
+            '--no-warnings',
+            'https://www.youtube.com/playlist?list=PL123',
+        ]
+        assert timeout_seconds == 45
+        return YtDlpCommandResult(returncode=0, stdout='{"entries": []}', stderr='')
+
+    monkeypatch.setattr(playlists, 'run_ytdlp', _fake_run_ytdlp)
+
+    result = expand_playlist(
+        'https://www.youtube.com/playlist?list=PL123',
+        cookies_file='cookies.txt',
+        timeout_seconds=45,
+    )
+
+    assert result == []
 
 
 def test_expand_playlist_raises_when_ytdlp_fails(monkeypatch) -> None:
@@ -188,6 +214,64 @@ def test_fetch_video_metadata_raises_when_video_id_is_missing(monkeypatch) -> No
 
     with pytest.raises(YtDlpError, match='did not return a video id'):
         fetch_video_metadata('https://www.youtube.com/watch?v=abc123')
+
+
+def test_search_youtube_videos_returns_normalized_results(monkeypatch) -> None:
+    def _fake_run_ytdlp(command: list[str], timeout_seconds: int) -> YtDlpCommandResult:
+        assert command == [
+            'yt-dlp',
+            '--cookies',
+            'cookies.txt',
+            '--dump-single-json',
+            '--no-warnings',
+            'ytsearch3:metallica one lyrics',
+        ]
+        assert timeout_seconds == 30
+        return YtDlpCommandResult(
+            returncode=0,
+            stdout=(
+                '{"entries": ['
+                '{"id": "abc123", "title": "Metallica - One (Lyrics)", "duration": 448, "webpage_url": "https://www.youtube.com/watch?v=abc123"}, '
+                '{"id": "def456", "title": "Metallica - One", "duration": 447, "is_live": true}, '
+                '{"title": "missing id"}'
+                ']}'
+            ),
+            stderr='',
+        )
+
+    monkeypatch.setattr(search, 'run_ytdlp', _fake_run_ytdlp)
+
+    result = search_youtube_videos(
+        'metallica one lyrics',
+        max_results=3,
+        cookies_file='cookies.txt',
+        timeout_seconds=30,
+    )
+
+    assert len(result) == 2
+    assert result[0].video_id == 'abc123'
+    assert result[0].url == 'https://www.youtube.com/watch?v=abc123'
+    assert result[0].title == 'Metallica - One (Lyrics)'
+    assert result[0].duration_seconds == 448
+    assert result[1].video_id == 'def456'
+    assert result[1].url == 'https://www.youtube.com/watch?v=def456'
+    assert result[1].was_live is True
+
+
+def test_search_youtube_videos_raises_on_invalid_max_results() -> None:
+    with pytest.raises(ValueError, match='max_results must be greater than 0'):
+        search_youtube_videos('query', max_results=0)
+
+
+def test_search_youtube_videos_raises_when_ytdlp_fails(monkeypatch) -> None:
+    def _fake_run_ytdlp(command: list[str], timeout_seconds: int) -> YtDlpCommandResult:
+        _ = (command, timeout_seconds)
+        return YtDlpCommandResult(returncode=1, stdout='', stderr='boom', reason='os_error')
+
+    monkeypatch.setattr(search, 'run_ytdlp', _fake_run_ytdlp)
+
+    with pytest.raises(YtDlpError, match='Could not search YouTube videos'):
+        search_youtube_videos('query')
 
 
 def test_download_audio_builds_expected_command_and_returns_success(monkeypatch) -> None:
