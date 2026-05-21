@@ -9,18 +9,18 @@ from audio_media_utils.youtube.models import DownloadOptions, DownloadResult
 from audio_media_utils.youtube.ytdlp_runner import run_ytdlp
 
 
-def _extract_downloaded_file_path(stdout: str) -> Path | None:
+def _extract_downloaded_file_path(stdout: str | None) -> Path | None:
     """Extract the final file path printed by ``yt-dlp`` if present."""
-    printed_lines = [line.strip() for line in stdout.splitlines() if line.strip()]
+    printed_lines = [line.strip() for line in (stdout or "").splitlines() if line.strip()]
     if not printed_lines:
         return None
 
     return Path(printed_lines[-1])
 
 
-def _extract_download_title(stdout: str) -> str | None:
+def _extract_download_title(stdout: str | None) -> str | None:
     """Extract a human-friendly title from printed ``yt-dlp`` output."""
-    printed_lines = [line.strip() for line in stdout.splitlines() if line.strip()]
+    printed_lines = [line.strip() for line in (stdout or "").splitlines() if line.strip()]
     if len(printed_lines) <= 1:
         return None
 
