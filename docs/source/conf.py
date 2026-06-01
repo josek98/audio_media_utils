@@ -13,7 +13,7 @@ sys.path.insert(0, str(_SRC_ROOT))
 project = 'audio_media_utils'
 copyright = '2026, josek98'
 author = 'josek98'
-release = '0.2.3'
+release = '0.2.4'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

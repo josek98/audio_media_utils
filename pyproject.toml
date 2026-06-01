@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "audio-media-utils"
-version = "0.2.3"
+version = "0.2.4"
 description = "Utilities for yt-dlp audio downloads and simple mutagen metadata workflows"
 readme = "README.md"
 requires-python = ">=3.11"
