@@ -176,7 +176,7 @@ def test_write_tags_updates_mp3_fields_without_deleting_unrelated_metadata(monke
     assert fake_audio.tags["TDRC"].payload["text"] == ["2024"]
     assert fake_audio.tags["TCON"].payload["text"] == ["Rock"]
     assert fake_audio.tags["TSRC"].payload["text"] == ["ISRC123"]
-    assert fake_audio.tags["TXXX:ALBUMTYPE"].payload["text"] == ["single"]
+    assert fake_audio.tags["TXXX:releasetype"].payload["text"] == ["single"]
     assert fake_audio.tags["UFID:http://musicbrainz.org"].payload["data"] == b"track-id"
     assert fake_audio.tags["TXXX:MusicBrainz Album Id"].payload["text"] == ["album-id"]
 
@@ -221,7 +221,7 @@ def test_write_tags_updates_flac_fields_without_deleting_unrelated_metadata(monk
     assert fake_audio.tags["date"] == ["2024"]
     assert fake_audio.tags["genre"] == ["Rock"]
     assert fake_audio.tags["isrc"] == ["ISRC123"]
-    assert fake_audio.tags["albumtype"] == ["album"]
+    assert fake_audio.tags["releasetype"] == ["album"]
     assert fake_audio.tags["musicbrainz_trackid"] == ["track-id"]
     assert fake_audio.tags["musicbrainz_albumid"] == ["album-id"]
 

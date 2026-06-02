@@ -120,7 +120,9 @@ def _write_mp3_tags(audio: MP3, tags: AudioTags) -> None:
     if tags.isrc is not None:
         _replace_id3_text_frame(audio, "TSRC", TSRC, [tags.isrc])
     if tags.album_type is not None:
-        _replace_id3_text_frame(audio, "TXXX:ALBUMTYPE", TXXX, [tags.album_type], desc="ALBUMTYPE")
+        # Picard exposes the publication type from the MusicBrainz-style
+        # releasetype key rather than a custom albumtype field.
+        _replace_id3_text_frame(audio, "TXXX:releasetype", TXXX, [tags.album_type], desc="releasetype")
     if tags.musicbrainz_trackid is not None:
         _replace_ufid_frame(audio, owner=_MUSICBRAINZ_OWNER, value=tags.musicbrainz_trackid)
     if tags.musicbrainz_albumid is not None:
@@ -158,7 +160,8 @@ def _write_flac_tags(audio: FLAC, tags: AudioTags) -> None:
     if tags.isrc is not None:
         audio["isrc"] = [tags.isrc]
     if tags.album_type is not None:
-        audio["albumtype"] = [tags.album_type]
+        # Picard interprets the Vorbis releasetype field as "Tipo de publicacion".
+        audio["releasetype"] = [tags.album_type]
     if tags.musicbrainz_trackid is not None:
         audio["musicbrainz_trackid"] = [tags.musicbrainz_trackid]
     if tags.musicbrainz_albumid is not None:
